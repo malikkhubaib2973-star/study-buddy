@@ -1,4 +1,6 @@
 import os
+import threading
+import time
 import uuid
 
 import httpx
@@ -6,7 +8,43 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Streamlit Cloud ki secrets ko environment mein daalo
+try:
+    if "GROQ_API_KEY" in st.secrets:
+        os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+except Exception:
+    pass
+
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+
+@st.cache_resource
+def start_backend():
+    """Backend pehle se chal raha ho to kuch nahi, warna background mein start."""
+    try:
+        httpx.get(f"{BACKEND_URL}/health", timeout=2)
+        return "already running"
+    except Exception:
+        pass
+
+    import uvicorn
+    from backend.main import app as api
+
+    config = uvicorn.Config(api, host="127.0.0.1", port=8000, log_level="warning")
+    server = uvicorn.Server(config)
+    threading.Thread(target=server.run, daemon=True).start()
+
+    for _ in range(40):
+        try:
+            httpx.get("http://127.0.0.1:8000/health", timeout=1)
+            break
+        except Exception:
+            time.sleep(0.5)
+    return "started"
+
+
+start_backend()
 
 SUBJECTS = {
     "Math": "math",

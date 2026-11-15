@@ -1,3 +1,7 @@
 streamlit
 httpx
 python-dotenv
+fastapi
+uvicorn
+groq
+pydantic
